@@ -1,0 +1,143 @@
+name: Build OpenWrt - Cudy TR3000 v1 256MB
+
+on:
+  workflow_dispatch:
+    inputs:
+      device_type:
+        description: '机型布局'
+        required: true
+        default: '256mb-stock'
+        type: choice
+        options:
+          - '256mb-stock'
+          - '256mb-ubootmod'
+      optional_packages:
+        description: '额外包（空格分隔，如 luci-app-sqm luci-app-upnp htop）'
+        required: false
+        default: ''
+        type: string
+      with_docker:
+        description: '包含 Docker 支持'
+        required: false
+        default: false
+        type: boolean
+      with_vpn:
+        description: '包含 luci-app-ssr-plus (helloworld)'
+        required: false
+        default: false
+        type: boolean
+      release:
+        description: '发布到 Release'
+        required: false
+        default: false
+        type: boolean
+
+  schedule:
+    - cron: '0 0 * * 6'
+
+env:
+  REPO_URL: https://github.com/openwrt/openwrt
+  REPO_BRANCH: main
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install build deps
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential clang flex bison g++ gawk \
+          gettext git libncurses5-dev libssl-dev \
+          python3-setuptools rsync unzip zlib1g-dev \
+          file wget subversion quilt
+
+    - name: Clone source
+      run: |
+        git clone --depth=1 -b $REPO_BRANCH $REPO_URL openwrt
+        cd openwrt
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    # ── 加载公共 seed ──
+    - name: Load common config seed
+      run: cp config/common.seed openwrt/.config
+
+    # ── 追加设备特定 seed ──
+    - name: Append device-specific config seed
+      run: |
+        case "${{ github.event.inputs.device_type }}" in
+          "256mb-stock")
+            DEV_SEED="config/cudy-tr3000-256mb.seed"
+            ;;
+          "256mb-ubootmod")
+            DEV_SEED="config/cudy-tr3000-256mb-ubootmod.seed"
+            ;;
+        esac
+        cat "$DEV_SEED" >> openwrt/.config
+
+    # ── 追加可选包 ──
+    - name: Append optional packages
+      working-directory: ./openwrt
+      run: |
+        if [ -n "${{ github.event.inputs.optional_packages }}" ]; then
+          for pkg in ${{ github.event.inputs.optional_packages }}; do
+            echo "CONFIG_PACKAGE_${pkg}=y" >> .config
+          done
+        fi
+        if [ "${{ github.event.inputs.with_docker }}" = "true" ]; then
+          echo "CONFIG_PACKAGE_dockerd=y"         >> .config
+          echo "CONFIG_PACKAGE_luci-app-dockerman=y" >> .config
+        fi
+        if [ "${{ github.event.inputs.with_vpn }}" = "true" ]; then
+          echo "CONFIG_PACKAGE_luci-app-ssr-plus=y" >> .config
+        fi
+        make defconfig
+
+    # ── diy.sh ──
+    - name: DIY
+      working-directory: ./openwrt
+      run: |
+        cat > diy.sh <<'DIY'
+#!/bin/bash
+sed -i 's/192.168.1.1/192.168.3.1/g' package/base-files/files/bin/config_generate
+sed -i 's/OpenWrt/TR3000/g' package/base-files/files/bin/config_generate
+if grep -q "luci-app-ssr-plus" .config; then
+  echo 'src-git helloworld https://github.com/fw876/helloworld' >> feeds.conf.default
+  ./scripts/feeds update helloworld
+  ./scripts/feeds install -a -p helloworld
+fi
+DIY
+        chmod +x diy.sh
+        ./diy.sh
+
+    - name: Download packages
+      working-directory: ./openwrt
+      run: make download -j$(nproc)
+
+    - name: Build firmware
+      working-directory: ./openwrt
+      run: |
+        make -j$(nproc) V=s 2>&1 | tee build.log
+        mkdir -p ../artifact
+        cp -r bin/targets/mediatek/filogic/* ../artifact/
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: openwrt-cudy-tr3000-${{ github.event.inputs.device_type }}
+        path: artifact/
+
+    - name: Create Release
+      if: ${{ github.event.inputs.release == 'true' }}
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: tr3000-${{ github.run_number }}-${{ github.event.inputs.device_type }}
+        files: artifact/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
