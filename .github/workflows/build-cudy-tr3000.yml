@@ -137,7 +137,6 @@ jobs:
         path: artifact/
 
     - name: Create Release
-      if: ${{ github.event.inputs.release == 'true' }}
       uses: softprops/action-gh-release@v2
       with:
         tag_name: tr3000-${{ github.run_number }}-${{ steps.device.outputs.DEVICE_TYPE }}
