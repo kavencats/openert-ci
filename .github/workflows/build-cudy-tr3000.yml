@@ -1,7 +1,6 @@
 name: Build OpenWrt - Cudy TR3000 v1 256MB
 
 on:
-  # 手动触发（保留全部选项）
   workflow_dispatch:
     inputs:
       device_type:
@@ -33,14 +32,13 @@ on:
         default: false
         type: boolean
 
-  # 自动触发：仅当关键配置文件变更时
   push:
     paths:
-      - 'config/*.seed'           # seed 文件变更
-      - 'diy.sh'                  # DIY 脚本变更
-      - '.github/workflows/build-cudy-tr3000.yml'  # workflow 自身变更
+      - 'config/*.seed'
+      - 'diy.sh'
+      - '.github/workflows/build-cudy-tr3000.yml'
     branches:
-      - main                      # 只在 main 分支生效
+      - main
 
 env:
   REPO_URL: https://github.com/openwrt/openwrt
@@ -71,8 +69,6 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    # ── 自动触发时使用默认配置（256mb-stock，不带额外包）──
-    # 手动触发时使用用户输入的参数
     - name: Set device type (auto vs manual)
       id: device
       run: |
@@ -97,7 +93,6 @@ jobs:
         esac
         cat "$DEV_SEED" >> openwrt/.config
 
-    # ── 自动触发时不加额外包；手动触发时按输入 ──
     - name: Append optional packages
       working-directory: ./openwrt
       run: |
@@ -117,22 +112,12 @@ jobs:
         fi
         make defconfig
 
-    # ── diy.sh ──
-    - name: DIY
+    # ── 直接执行仓库中的 diy.sh（不再用 heredoc）──
+    - name: Run DIY script
       working-directory: ./openwrt
       run: |
-        cat > diy.sh <<'DIY'
-#!/bin/bash
-sed -i 's/192.168.1.1/192.168.10.1/g' package/base-files/files/bin/config_generate
-sed -i 's/OpenWrt/TR3000/g' package/base-files/files/bin/config_generate
-if grep -q "luci-app-ssr-plus" .config; then
-  echo 'src-git helloworld https://github.com/fw876/helloworld' >> feeds.conf.default
-  ./scripts/feeds update helloworld
-  ./scripts/feeds install -a -p helloworld
-fi
-DIY
-        chmod +x diy.sh
-        ./diy.sh
+        chmod +x ../diy.sh
+        ../diy.sh
 
     - name: Download packages
       working-directory: ./openwrt
