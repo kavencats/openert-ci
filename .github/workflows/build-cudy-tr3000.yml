@@ -1,6 +1,7 @@
 name: Build OpenWrt - Cudy TR3000 v1 256MB
 
 on:
+  # 手动触发（保留全部选项）
   workflow_dispatch:
     inputs:
       device_type:
@@ -32,8 +33,14 @@ on:
         default: false
         type: boolean
 
-  #schedule:
-  #  - cron: '0 0 * * 6'
+  # 自动触发：仅当关键配置文件变更时
+  push:
+    paths:
+      - 'config/*.seed'           # seed 文件变更
+      - 'diy.sh'                  # DIY 脚本变更
+      - '.github/workflows/build-cudy-tr3000.yml'  # workflow 自身变更
+    branches:
+      - main                      # 只在 main 分支生效
 
 env:
   REPO_URL: https://github.com/openwrt/openwrt
@@ -64,14 +71,23 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    # ── 加载公共 seed ──
+    # ── 自动触发时使用默认配置（256mb-stock，不带额外包）──
+    # 手动触发时使用用户输入的参数
+    - name: Set device type (auto vs manual)
+      id: device
+      run: |
+        if [ "${{ github.event_name }}" = "push" ]; then
+          echo "DEVICE_TYPE=256mb-stock" >> $GITHUB_OUTPUT
+        else
+          echo "DEVICE_TYPE=${{ github.event.inputs.device_type }}" >> $GITHUB_OUTPUT
+        fi
+
     - name: Load common config seed
       run: cp config/common.seed openwrt/.config
 
-    # ── 追加设备特定 seed ──
     - name: Append device-specific config seed
       run: |
-        case "${{ github.event.inputs.device_type }}" in
+        case "${{ steps.device.outputs.DEVICE_TYPE }}" in
           "256mb-stock")
             DEV_SEED="config/cudy-tr3000-256mb.seed"
             ;;
@@ -81,21 +97,23 @@ jobs:
         esac
         cat "$DEV_SEED" >> openwrt/.config
 
-    # ── 追加可选包 ──
+    # ── 自动触发时不加额外包；手动触发时按输入 ──
     - name: Append optional packages
       working-directory: ./openwrt
       run: |
-        if [ -n "${{ github.event.inputs.optional_packages }}" ]; then
-          for pkg in ${{ github.event.inputs.optional_packages }}; do
-            echo "CONFIG_PACKAGE_${pkg}=y" >> .config
-          done
-        fi
-        if [ "${{ github.event.inputs.with_docker }}" = "true" ]; then
-          echo "CONFIG_PACKAGE_dockerd=y"         >> .config
-          echo "CONFIG_PACKAGE_luci-app-dockerman=y" >> .config
-        fi
-        if [ "${{ github.event.inputs.with_vpn }}" = "true" ]; then
-          echo "CONFIG_PACKAGE_luci-app-ssr-plus=y" >> .config
+        if [ "${{ github.event_name }}" != "push" ]; then
+          if [ -n "${{ github.event.inputs.optional_packages }}" ]; then
+            for pkg in ${{ github.event.inputs.optional_packages }}; do
+              echo "CONFIG_PACKAGE_${pkg}=y" >> .config
+            done
+          fi
+          if [ "${{ github.event.inputs.with_docker }}" = "true" ]; then
+            echo "CONFIG_PACKAGE_dockerd=y"         >> .config
+            echo "CONFIG_PACKAGE_luci-app-dockerman=y" >> .config
+          fi
+          if [ "${{ github.event.inputs.with_vpn }}" = "true" ]; then
+            echo "CONFIG_PACKAGE_luci-app-ssr-plus=y" >> .config
+          fi
         fi
         make defconfig
 
@@ -130,14 +148,14 @@ DIY
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: openwrt-cudy-tr3000-${{ github.event.inputs.device_type }}
+        name: openwrt-cudy-tr3000-${{ steps.device.outputs.DEVICE_TYPE }}
         path: artifact/
 
     - name: Create Release
       if: ${{ github.event.inputs.release == 'true' }}
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: tr3000-${{ github.run_number }}-${{ github.event.inputs.device_type }}
+        tag_name: tr3000-${{ github.run_number }}-${{ steps.device.outputs.DEVICE_TYPE }}
         files: artifact/*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
