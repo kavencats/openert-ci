@@ -31,10 +31,18 @@ git clone --depth=1 https://github.com/OneNAS-space/luci-app-adguardhome.git pac
 
 # kiddin9（diskman / smbuser / filemanager 都在这）
 ./scripts/feeds install -p kiddin9 \
-  luci-app-diskman parted e2fsprogs \
-  luci-app-smbuser shadow-usermod shadow-groupmod \
-  luci-app-filemanager luci-app-samba4 \
-  samba4-server wsdd2 luci-theme-argon luci-app-lucky \
+  luci-app-diskman \
+  parted \
+  e2fsprogs \
+  luci-app-smbuser \
+  shadow-usermod \
+  shadow-groupmod \
+  luci-app-filemanager \
+  luci-app-samba4 \
+  samba4-server \
+  wsdd2 \
+  luci-theme-argon \
+  luci-app-lucky \
   lucky \
   luci-i18n-diskman-zh-cn \
   luci-i18n-smbuser-zh-cn \
@@ -75,7 +83,6 @@ CONFIG_PACKAGE_e2fsprogs=y
 CONFIG_PACKAGE_shadow-usermod=y
 CONFIG_PACKAGE_shadow-groupmod=y
 CONFIG_PACKAGE_luci-compat=y
-CONFIG_PACKAGE_kmod-nf-conntrack=y
 CONFIG_PACKAGE_curl=y
 CONFIG_PACKAGE_ca-certificates=y
 CONFIG_PACKAGE_lucky=y
