@@ -5,11 +5,11 @@ set -euo pipefail
 # diy.sh – Cudy TR3000 v1 256MB NAND
 # 场景: 家庭主力 AP + 轻 NAS + 去广告 (AGH主)
 # 机型: MT7981BA / 512MB RAM / 256MB NAND
-# 源码: openwrt/openwrt main（非 ImmortalWrt）
+# 源码: openwrt/openwrt main
 # ============================================
 
 # ---------- 1. 第三方源 ----------
-echo "src-git kiddin9 https://github.com/kiddin9/op-packages.git" >> feeds.conf.default
+echo "src-git kiddin9 git://github.com/kiddin9/op-packages.git" >> feeds.conf.default
 
 # ---------- 2. 更新源（重试 + 失败即停）----------
 export GIT_TERMINAL_PROMPT=0
@@ -18,17 +18,17 @@ for i in 1 2 3; do
   sleep 8
 done
 
-# ---------- 2b. kiddin9 里 Makefile 写坏的包清掉，否则 index 建不出 ----------
+# ---------- 2b. 清 kiddin9 里 Makefile 写坏的包（webd 已知）----------
 rm -rf feeds/kiddin9/webd
-./scripts/feeds update kiddin9   # 重 index，webd 没了就不炸
+./scripts/feeds update kiddin9
 
-# ---------- 3. AdGuardHome 单包 → package/（非 feed，防索引炸）----------
+# ---------- 3. AdGuardHome 单包 → package/（非 feed）----------
 rm -rf package/luci-app-adguardhome
 git clone --depth=1 https://github.com/OneNAS-space/luci-app-adguardhome.git package/luci-app-adguardhome
 
-# ---------- 4. 安装包（官方 main 分支包名对齐）----------
+# ---------- 4. 安装包（官方 main 包名对齐）----------
 
-# 4a. 官方源（无线用 kmod-mt7915e，MT7976CN 走这个；固件自动拉）
+# 4a. 官方源
 ./scripts/feeds install \
   uhttpd \
   luci-i18n-base-zh-cn luci-i18n-samba4-zh-cn \
@@ -39,7 +39,7 @@ git clone --depth=1 https://github.com/OneNAS-space/luci-app-adguardhome.git pac
   kmod-nft-offload kmod-ipt-offload \
   zram-swap curl ca-certificates
 
-# 4b. kiddin9（argon / diskman / lucky，砍 filemanager/smbuser/commands/shadow）
+# 4b. kiddin9
 ./scripts/feeds install -p kiddin9 \
   luci-theme-argon \
   luci-app-diskman block-mount parted e2fsprogs \
@@ -97,7 +97,7 @@ EOF
 
 # ---------- 7. TR3000 家庭 AP 调优（编译期植入）----------
 
-# 7a. PPPoE RPS hotplug — pppoe-wan rx 分散到 CPU1
+# 7a. PPPoE RPS hotplug
 mkdir -p package/base-files/files/etc/hotplug.d/net
 cat > package/base-files/files/etc/hotplug.d/net/10-pppoe-rps <<'HOTPLUG'
 #!/bin/sh
@@ -109,13 +109,15 @@ done
 HOTPLUG
 chmod +x package/base-files/files/etc/hotplug.d/net/10-pppoe-rps
 
-# 7b. 防火墙 MSS clamping (PPPoE 1492 → 1452)
-if [ -f package/network/config/firewall/files/firewall.config ]; then
-  sed -i '/option syn_flood/a\        option tcp_mss '\''1'\''\n        option tcp_mss_target '\''1452'\'' \
-    package/network/config/firewall/files/firewall.config
+# 7b. 防火墙 MSS clamping（PPPoE 1492 → 1452）— 用 echo + sed 避免复杂转义
+FIREWALL_CONFIG="package/network/config/firewall/files/firewall.config"
+if [ -f "$FIREWALL_CONFIG" ]; then
+  # 先生成一个临时行，然后用 sed 插入到 option syn_flood 后面
+  LINE="\toption tcp_mss '1'\n\toption tcp_mss_target '1452'"
+  sed -i "/option syn_flood/a\\${LINE}" "$FIREWALL_CONFIG"
 fi
 
-# 7c. Samba4 缓存调优（USB3 + 2.5G LAN 轻 NAS）
+# 7c. Samba4 缓存调优
 mkdir -p package/base-files/files/etc/samba
 cat > package/base-files/files/etc/samba/smb-extra.conf <<'SAMBA'
 [global]
@@ -126,7 +128,7 @@ max xmit = 65536
 use sendfile = yes
 SAMBA
 
-# 7d. 无线：5G 80MHz / CN / 2.4G 降功率避 USB3 干扰
+# 7d. 无线：5G 80MHz / CN
 if [ -f package/kernel/mac80211/files/lib/wifi/mac80211.sh ]; then
   sed -i 's/country=".*"/country="CN"/' \
     package/kernel/mac80211/files/lib/wifi/mac80211.sh 2>/dev/null || true
