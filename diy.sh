@@ -23,21 +23,22 @@ git clone --depth=1 https://github.com/OneNAS-space/luci-app-adguardhome.git pac
 # 官方源
 ./scripts/feeds install \
   uhttpd luci-app-commands \
+  luci-compat \
+  block-mount \
   luci-i18n-base-zh-cn \
   luci-i18n-commands-zh-cn \
   luci-i18n-samba4-zh-cn
 
 # kiddin9（diskman / smbuser / filemanager 都在这）
 ./scripts/feeds install -p kiddin9 \
-  luci-app-diskman block-mount parted e2fsprogs \
+  luci-app-diskman parted e2fsprogs \
   luci-app-smbuser shadow-usermod shadow-groupmod \
-  luci-app-filemanager luci-compat luci-app-samba4 \
+  luci-app-filemanager luci-app-samba4 \
   samba4-server wsdd2 luci-theme-argon luci-app-lucky \
   lucky \
   luci-i18n-diskman-zh-cn \
   luci-i18n-smbuser-zh-cn \
-  luci-i18n-filemanager-zh-cn \
-  luci-i18n-lucky-zh-cn
+  luci-i18n-filemanager-zh-cn
 
 # oaf（主线 nft，不要 iptables-mod-conntrack）
 ./scripts/feeds install -p oaf oaf luci-app-oaf
@@ -86,5 +87,4 @@ CONFIG_PACKAGE_luci-i18n-samba4-zh-cn=y
 CONFIG_PACKAGE_luci-i18n-diskman-zh-cn=y
 CONFIG_PACKAGE_luci-i18n-smbuser-zh-cn=y
 CONFIG_PACKAGE_luci-i18n-filemanager-zh-cn=y
-CONFIG_PACKAGE_luci-i18n-lucky-zh-cn=y
 EOF
