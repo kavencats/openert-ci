@@ -24,7 +24,7 @@ on:
 
 env:
   REPO_URL: https://github.com/openwrt/openwrt
-  REPO_BRANCH: main
+  REPO_BRANCH: 25.12.5
   TZ: Asia/Shanghai
   CCACHE_DIR: /tmp/ccache
 
