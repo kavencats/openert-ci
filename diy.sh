@@ -1,26 +1,33 @@
 #!/bin/bash
 
 # ============================================
-# diy.sh – 自定义 OpenWrt 构建脚本（含依赖 + 中文语言包）
+# diy.sh – Cudy TR3000 自定义构建
 # ============================================
 
-# 1. 添加第三方软件源
+# 1. 第三方源（kiddin9 走 feed；adguardhome 是单包仓库，不走 feed）
 echo "src-git kiddin9 https://github.com/kiddin9/openwrt-packages.git" >> feeds.conf.default
 echo "src-git oaf https://github.com/destan19/OpenAppFilter.git" >> feeds.conf.default
-echo "src-git adguardhome https://github.com/OneNAS-space/luci-app-adguardhome.git" >> feeds.conf.default
 
-# 2. 更新所有源
-./scripts/feeds update -a
+# 2. 更新源（kiddin9 偶发 HTTPS 节流，加重试）
+export GIT_TERMINAL_PROMPT=0
+for i in 1 2 3; do
+  ./scripts/feeds update -a && break
+  sleep 5
+done
 
-# 3. 安装指定包及其依赖（按源分组）
-# 官方源包（含中文语言包）
+# 3. adguardhome 单包仓库 → 直接 clone 到 package/（不走 feed！）
+rm -rf package/luci-app-adguardhome
+git clone --depth=1 https://github.com/OneNAS-space/luci-app-adguardhome.git package/luci-app-adguardhome
+
+# 4. 安装包（按源分组）
+# 官方源
 ./scripts/feeds install \
   uhttpd luci-app-commands \
   luci-i18n-base-zh-cn \
   luci-i18n-commands-zh-cn \
   luci-i18n-samba4-zh-cn
 
-# kiddin9 源包（含中文语言包）
+# kiddin9（diskman / smbuser / filemanager 都在这）
 ./scripts/feeds install -p kiddin9 \
   luci-app-diskman block-mount parted e2fsprogs \
   luci-app-smbuser shadow-usermod shadow-groupmod \
@@ -30,19 +37,20 @@ echo "src-git adguardhome https://github.com/OneNAS-space/luci-app-adguardhome.g
   luci-i18n-smbuser-zh-cn \
   luci-i18n-filemanager-zh-cn
 
-# OpenAppFilter 源包（核心 + Luci + 依赖）
-./scripts/feeds install -p oaf oaf luci-app-oaf kmod-nf-conntrack iptables-mod-conntrack
+# oaf（主线 nft，不要 iptables-mod-conntrack）
+./scripts/feeds install -p oaf oaf luci-app-oaf
 
-# AdGuardHome 源包
-./scripts/feeds install -p adguardhome luci-app-adguardhome adguardhome curl ca-certificates
+# adguardhome 已经在 package/ 下，feeds install 不用管它
+# 但它依赖 curl/ca-certificates，从官方源装
+./scripts/feeds install curl ca-certificates
 
-# 4. 修改默认 IP 和主机名
+# 5. 默认 IP / 主机名
 sed -i 's/192.168.1.1/192.168.3.1/g' package/base-files/files/bin/config_generate
 sed -i 's/OpenWrt/TR3000/g' package/base-files/files/bin/config_generate
 
-# 5. 将所有包（含依赖和中文翻译）写入 .config，确保编译进固件
-cat >> .config <<EOF
-# 用户指定包
+# 6. .config 写入
+cat >> .config <<'EOF'
+# 主包
 CONFIG_PACKAGE_uhttpd=y
 CONFIG_PACKAGE_luci-app-samba4=y
 CONFIG_PACKAGE_luci-app-diskman=y
@@ -53,7 +61,7 @@ CONFIG_PACKAGE_oaf=y
 CONFIG_PACKAGE_luci-app-oaf=y
 CONFIG_PACKAGE_luci-app-adguardhome=y
 
-# 依赖包
+# 依赖
 CONFIG_PACKAGE_samba4-server=y
 CONFIG_PACKAGE_wsdd2=y
 CONFIG_PACKAGE_block-mount=y
@@ -63,12 +71,10 @@ CONFIG_PACKAGE_shadow-usermod=y
 CONFIG_PACKAGE_shadow-groupmod=y
 CONFIG_PACKAGE_luci-compat=y
 CONFIG_PACKAGE_kmod-nf-conntrack=y
-CONFIG_PACKAGE_iptables-mod-conntrack=y
-CONFIG_PACKAGE_adguardhome=y
 CONFIG_PACKAGE_curl=y
 CONFIG_PACKAGE_ca-certificates=y
 
-# 中文语言包
+# 中文
 CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
 CONFIG_PACKAGE_luci-i18n-commands-zh-cn=y
 CONFIG_PACKAGE_luci-i18n-samba4-zh-cn=y
