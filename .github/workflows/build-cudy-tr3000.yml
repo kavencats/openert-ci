@@ -1,4 +1,4 @@
-name: Build OpenWrt - Cudy TR3000 v1 (Manual Only)
+name: Build OpenWrt - Cudy TR3000 v1
 
 on:
   workflow_dispatch:
