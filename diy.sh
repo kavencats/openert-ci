@@ -22,6 +22,10 @@ if ! ./scripts/feeds list -p kiddin9 >/dev/null 2>&1; then
   exit 1
 fi
 
+# ---------- 2b. kiddin9 里 Makefile 写坏的包清掉，否则 index 建不出 ----------
+rm -rf feeds/kiddin9/webd
+./scripts/feeds update kiddin9   # 重 index，webd 没了就不炸
+
 # ---------- 3. AdGuardHome 单包 → package/（非 feed，防索引炸）----------
 rm -rf package/luci-app-adguardhome
 git clone --depth=1 https://github.com/OneNAS-space/luci-app-adguardhome.git package/luci-app-adguardhome
