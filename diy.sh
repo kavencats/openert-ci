@@ -22,12 +22,16 @@ git clone --depth=1 https://github.com/OneNAS-space/luci-app-adguardhome.git pac
 # 4. 安装包（按源分组）
 # 官方源
 ./scripts/feeds install \
-  uhttpd luci-app-commands \
+  uhttpd \
+  luci-app-commands \
+  luci-app-uhttpd \
+  luci-app-filemanager \
   luci-compat \
   block-mount \
   luci-i18n-base-zh-cn \
   luci-i18n-commands-zh-cn \
-  luci-i18n-samba4-zh-cn
+  luci-i18n-filemanager-zh-cn \
+  luci-i18n-uhttpd-zh-cn
 
 # kiddin9（diskman / smbuser / filemanager 都在这）
 ./scripts/feeds install -p kiddin9 \
@@ -37,7 +41,6 @@ git clone --depth=1 https://github.com/OneNAS-space/luci-app-adguardhome.git pac
   luci-app-smbuser \
   shadow-usermod \
   shadow-groupmod \
-  luci-app-filemanager \
   luci-app-samba4 \
   samba4-server \
   wsdd2 \
@@ -46,7 +49,8 @@ git clone --depth=1 https://github.com/OneNAS-space/luci-app-adguardhome.git pac
   lucky \
   luci-i18n-diskman-zh-cn \
   luci-i18n-smbuser-zh-cn \
-  luci-i18n-filemanager-zh-cn
+  luci-i18n-samba4-zh-cn
+  
 
 # oaf（主线 nft，不要 iptables-mod-conntrack）
 ./scripts/feeds install -p oaf oaf luci-app-oaf
@@ -57,7 +61,7 @@ git clone --depth=1 https://github.com/OneNAS-space/luci-app-adguardhome.git pac
 
 # 5. 默认 IP / 主机名
 sed -i 's/192.168.1.1/192.168.3.1/g' package/base-files/files/bin/config_generate
-sed -i 's/OpenWrt/TR3000/g' package/base-files/files/bin/config_generate
+sed -i 's/OpenWrt/cudytr3000/g' package/base-files/files/bin/config_generate
 
 # 6. .config 写入
 cat >> .config <<'EOF'
@@ -73,6 +77,7 @@ CONFIG_PACKAGE_luci-app-oaf=y
 CONFIG_PACKAGE_luci-app-adguardhome=y
 CONFIG_PACKAGE_luci-theme-argon=y
 CONFIG_PACKAGE_luci-app-lucky=y
+CONFIG_PACKAGE_luci-app-uhttpd=y
 
 # 依赖
 CONFIG_PACKAGE_samba4-server=y
@@ -94,4 +99,5 @@ CONFIG_PACKAGE_luci-i18n-samba4-zh-cn=y
 CONFIG_PACKAGE_luci-i18n-diskman-zh-cn=y
 CONFIG_PACKAGE_luci-i18n-smbuser-zh-cn=y
 CONFIG_PACKAGE_luci-i18n-filemanager-zh-cn=y
+CONFIG_PACKAGE_luci-i18n-uhttpd-zh-cn=y
 EOF
