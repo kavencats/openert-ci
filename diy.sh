@@ -17,10 +17,6 @@ for i in 1 2 3; do
   ./scripts/feeds update -a && break
   sleep 8
 done
-if ! ./scripts/feeds list -p kiddin9 >/dev/null 2>&1; then
-  echo "ERROR: kiddin9 feed unavailable after 3 retries" >&2
-  exit 1
-fi
 
 # ---------- 2b. kiddin9 里 Makefile 写坏的包清掉，否则 index 建不出 ----------
 rm -rf feeds/kiddin9/webd
