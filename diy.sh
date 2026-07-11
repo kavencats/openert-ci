@@ -10,6 +10,7 @@ set -euo pipefail
 
 # ---------- 1. 第三方源 ----------
 echo "src-git kiddin9 https://github.com/kiddin9/op-packages.git" >> feeds.conf.default
+echo "src-git oaf https://github.com/destan19/OpenAppFilter.git" >> feeds.conf.default
 
 # ---------- 2. 更新源（重试 + 失败即停）----------
 export GIT_TERMINAL_PROMPT=0
@@ -47,7 +48,7 @@ git clone --depth=1 https://github.com/OneNAS-space/luci-app-adguardhome.git pac
   luci-i18n-diskman-zh-cn
 
 # 4c. oaf 家用可砍，要就解注
-# ./scripts/feeds install -p oaf oaf luci-app-oaf
+./scripts/feeds install -p oaf oaf luci-app-oaf
 
 # ---------- 5. 默认 IP / 主机名 ----------
 sed -i 's/192.168.1.1/192.168.3.1/g' package/base-files/files/bin/config_generate
@@ -63,10 +64,12 @@ CONFIG_PACKAGE_luci-app-diskman=y
 CONFIG_PACKAGE_luci-app-adguardhome=y
 CONFIG_PACKAGE_luci-theme-argon=y
 CONFIG_PACKAGE_luci-app-lucky=y
+CONFIG_PACKAGE_luci-app-oaf=y
 
 # ===== 依赖 =====
 CONFIG_PACKAGE_samba4-server=y
 CONFIG_PACKAGE_wsdd2=y
+CONFIG_PACKAGE_oaf=y
 CONFIG_PACKAGE_block-mount=y
 CONFIG_PACKAGE_parted=y
 CONFIG_PACKAGE_e2fsprogs=y
