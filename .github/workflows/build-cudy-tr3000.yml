@@ -1,4 +1,4 @@
-name: Build OpenWrt - Cudy TR3000 v1 256MB
+name: Build OpenWrt - Cudy TR3000 v1 (Manual Only)
 
 on:
   workflow_dispatch:
@@ -16,127 +16,122 @@ on:
         required: false
         default: ''
         type: string
-      with_docker:
-        description: '包含 Docker 支持'
-        required: false
-        default: false
-        type: boolean
-      with_vpn:
-        description: '包含 luci-app-ssr-plus (helloworld)'
-        required: false
-        default: false
-        type: boolean
       release:
         description: '发布到 Release'
         required: false
-        default: false
+        default: true
         type: boolean
-
-  push:
-    paths:
-      - 'config/*.seed'
-      - 'diy.sh'
-      - '.github/workflows/build-cudy-tr3000.yml'
-    branches:
-      - main
 
 env:
   REPO_URL: https://github.com/openwrt/openwrt
   REPO_BRANCH: main
   TZ: Asia/Shanghai
+  CCACHE_DIR: /tmp/ccache
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
 
     steps:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Install build deps
+    - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y \
+        sudo apt-get install -y --no-install-recommends \
           build-essential clang flex bison g++ gawk \
           gettext git libncurses5-dev libssl-dev \
           python3-setuptools rsync unzip zlib1g-dev \
-          file wget subversion quilt
+          file wget subversion quilt ccache
 
-    - name: Clone source
+    - name: Restore ccache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ccache-cudy-tr3000-${{ hashFiles('config/*.seed', 'diy.sh') }}
+        restore-keys: |
+          ccache-cudy-tr3000-
+
+    - name: Clone OpenWrt source
       run: |
         git clone --depth=1 -b $REPO_BRANCH $REPO_URL openwrt
-        cd openwrt
+
+    - name: Update and install feeds
+      working-directory: ./openwrt
+      run: |
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: Set device type (auto vs manual)
+    - name: Determine device type
       id: device
       run: |
-        if [ "${{ github.event_name }}" = "push" ]; then
-          echo "DEVICE_TYPE=256mb-stock" >> $GITHUB_OUTPUT
-        else
-          echo "DEVICE_TYPE=${{ github.event.inputs.device_type }}" >> $GITHUB_OUTPUT
-        fi
+        echo "DEVICE_TYPE=${{ github.event.inputs.device_type }}" >> "$GITHUB_OUTPUT"
 
-    - name: Load common config seed
-      run: cp config/common.seed openwrt/.config
-
-    - name: Append device-specific config seed
-      run: |
-        case "${{ steps.device.outputs.DEVICE_TYPE }}" in
-          "256mb-stock")
-            DEV_SEED="config/cudy-tr3000-256mb.seed"
-            ;;
-          "256mb-ubootmod")
-            DEV_SEED="config/cudy-tr3000-256mb-ubootmod.seed"
-            ;;
-        esac
-        cat "$DEV_SEED" >> openwrt/.config
-
-    - name: Append optional packages
+    - name: Configure build
       working-directory: ./openwrt
       run: |
-        if [ "${{ github.event_name }}" != "push" ]; then
-          if [ -n "${{ github.event.inputs.optional_packages }}" ]; then
-            for pkg in ${{ github.event.inputs.optional_packages }}; do
-              echo "CONFIG_PACKAGE_${pkg}=y" >> .config
-            done
-          fi
-          if [ "${{ github.event.inputs.with_docker }}" = "true" ]; then
-            echo "CONFIG_PACKAGE_dockerd=y"         >> .config
-            echo "CONFIG_PACKAGE_luci-app-dockerman=y" >> .config
-          fi
-          if [ "${{ github.event.inputs.with_vpn }}" = "true" ]; then
-            echo "CONFIG_PACKAGE_luci-app-ssr-plus=y" >> .config
-          fi
-        fi
+        set -euo pipefail
+        # 基础配置
+        cp ../config/common.seed .config
+
+        # 设备特定配置
+        case "${{ steps.device.outputs.DEVICE_TYPE }}" in
+          "256mb-stock")
+            cat ../config/cudy-tr3000-256mb.seed >> .config
+            ;;
+          "256mb-ubootmod")
+            cat ../config/cudy-tr3000-256mb-ubootmod.seed >> .config
+            ;;
+        esac
+
+        # 可选包（仅手动触发）
+        IFS=' ' read -ra PKGS <<< "${{ github.event.inputs.optional_packages }}"
+        for pkg in "${PKGS[@]}"; do
+          [[ -n "$pkg" ]] && echo "CONFIG_PACKAGE_${pkg}=y" >> .config
+        done
+
         make defconfig
 
-    # ── 直接执行仓库中的 diy.sh（不再用 heredoc）──
-    - name: Run DIY script
+    - name: Run custom DIY script
       working-directory: ./openwrt
       run: |
         chmod +x ../diy.sh
         ../diy.sh
 
-    - name: Download packages
+    - name: Cache downloaded packages
+      uses: actions/cache@v4
+      with:
+        path: openwrt/dl
+        key: dl-cudy-tr3000-${{ hashFiles('openwrt/dl/**') }}
+        restore-keys: |
+          dl-cudy-tr3000-
+
+    - name: Download package sources
       working-directory: ./openwrt
-      run: make download -j$(nproc)
+      run: make download -j$(nproc) BUILD_LOG=1
 
     - name: Build firmware
       working-directory: ./openwrt
       run: |
+        export PATH="/usr/lib/ccache:$PATH"
         make -j$(nproc) V=s 2>&1 | tee build.log
         mkdir -p ../artifact
         cp -r bin/targets/mediatek/filogic/* ../artifact/
 
-    - name: Upload artifact
+    - name: Upload build artifact
       uses: actions/upload-artifact@v4
       with:
         name: openwrt-cudy-tr3000-${{ steps.device.outputs.DEVICE_TYPE }}
         path: artifact/
 
-    - name: Create Release
+    - name: Create GitHub Release
+      if: ${{ github.event.inputs.release == 'true' }}
       uses: softprops/action-gh-release@v2
       with:
         tag_name: tr3000-${{ github.run_number }}-${{ steps.device.outputs.DEVICE_TYPE }}
