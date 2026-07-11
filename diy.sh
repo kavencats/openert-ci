@@ -9,7 +9,7 @@ set -euo pipefail
 # ============================================
 
 # ---------- 1. 第三方源 ----------
-echo "src-git kiddin9 git://github.com/kiddin9/op-packages.git" >> feeds.conf.default
+echo "src-git kiddin9 https://github.com/kiddin9/op-packages.git" >> feeds.conf.default
 
 # ---------- 2. 更新源（重试 + 失败即停）----------
 export GIT_TERMINAL_PROMPT=0
