@@ -5,7 +5,7 @@
 # ============================================
 
 # 1. 第三方源（kiddin9 走 feed；adguardhome 是单包仓库，不走 feed）
-echo "src-git kiddin9 git://github.com/kiddin9/openwrt-packages.git" >> feeds.conf.default
+echo "src-git kiddin9 https://ghfast.top/https://github.com/kiddin9/openwrt-packages.git" >> feeds.conf.default
 echo "src-git oaf https://github.com/destan19/OpenAppFilter.git" >> feeds.conf.default
 
 # 2. 更新源（kiddin9 偶发 HTTPS 节流，加重试）
