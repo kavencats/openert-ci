@@ -48,15 +48,12 @@ git clone --depth=1 https://github.com/OneNAS-space/luci-app-adguardhome.git pac
   luci-i18n-base-zh-cn luci-i18n-samba4-zh-cn \
   luci-app-samba4 samba4-server wsdd2 \
   luci-compat \
-  kmod-nf-conntrack \
-  kmod-mt7915e \
-  kmod-nft-offload kmod-ipt-offload \
   zram-swap curl ca-certificates
 
 # 4b kiddin9
 ./scripts/feeds install -p kiddin9 \
   luci-theme-argon \
-  luci-app-diskman block-mount parted e2fsprogs \
+  luci-app-diskman parted e2fsprogs \
   luci-app-lucky lucky \
   luci-i18n-diskman-zh-cn
 
@@ -79,13 +76,8 @@ CONFIG_PACKAGE_luci-app-oaf=y
 CONFIG_PACKAGE_samba4-server=y
 CONFIG_PACKAGE_wsdd2=y
 CONFIG_PACKAGE_oaf=y
-CONFIG_PACKAGE_block-mount=y
 CONFIG_PACKAGE_parted=y
 CONFIG_PACKAGE_e2fsprogs=y
-CONFIG_PACKAGE_kmod-nf-conntrack=y
-CONFIG_PACKAGE_kmod-mt7915e=y
-CONFIG_PACKAGE_kmod-nft-offload=y
-CONFIG_PACKAGE_kmod-ipt-offload=y
 CONFIG_PACKAGE_zram-swap=y
 CONFIG_ZRAM_DEV_SIZE=256
 CONFIG_PACKAGE_curl=y
