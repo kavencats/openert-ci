@@ -32,7 +32,7 @@ git clone --depth=1 https://github.com/OneNAS-space/luci-app-adguardhome.git pac
   luci-app-diskman block-mount parted e2fsprogs \
   luci-app-smbuser shadow-usermod shadow-groupmod \
   luci-app-filemanager luci-compat luci-app-samba4 \
-  samba4-server wsdd2 \
+  samba4-server wsdd2 luci-theme-argon \
   luci-i18n-diskman-zh-cn \
   luci-i18n-smbuser-zh-cn \
   luci-i18n-filemanager-zh-cn
