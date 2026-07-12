@@ -13,9 +13,6 @@ sed -i 's/OpenWrt/TR3000/g' package/base-files/files/bin/config_generate
 
 # ---------- 3. .config 追加（argon + diskman + USB + Samba + 中文 + HNAT）----------
 cat >> .config <<'EOF'
-CONFIG_PACKAGE_util-linux-blkid=y
-CONFIG_PACKAGE_util-linux-lsblk=y
-
 CONFIG_PACKAGE_kmod-usb3=y
 CONFIG_PACKAGE_kmod-usb-storage=y
 CONFIG_PACKAGE_kmod-fs-ext4=y
