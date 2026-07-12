@@ -3,35 +3,52 @@ set -euo pipefail
 
 # ============================================
 # diy.sh – TR3000 v1
-# 场景: 官方主线 + argon 单包(kiddin9) + diskman(GUI挂盘) + Samba4 共享
+# 官方主线 + kiddin9(argon+diskman) + USB+Samba
+# 注意：kiddin9 src-git 已提前写在 feeds.conf.default，update -a 已由 YAML 做完
 # ============================================
 
-# ---------- 1. 追加 kiddin9 源（仅用于 argon + diskman）----------
-echo "src-git kiddin9 https://github.com/kiddin9/op-packages.git" >> feeds.conf.default
-
-# ---------- 2. 更新官方源 + kiddin9 ----------
+# ---------- 1. 兜底：确保 kiddin9 索引可用（防 YAML 那遍 -a 时 kiddin9 临时挂）----------
 export GIT_TERMINAL_PROMPT=0
-./scripts/feeds update packages luci routing telephony
-for i in 1 2 3; do
-  ./scripts/feeds update kiddin9 && break
-  sleep 8
-done
+./scripts/feeds update kiddin9 2>/dev/null || true
+./scripts/feeds install -p kiddin9 luci-theme-argon luci-app-diskman \
+  util-linux-blkid util-linux-lsblk
 
-# ---------- 3. 装 argon + diskman（kiddin9 只这两个包）----------
-#./scripts/feeds install -p kiddin9 luci-theme-argon luci-app-diskman
-
-# ---------- 4. 默认 IP / 主机名 ----------
+# ---------- 2. IP / 主机名 ----------
 sed -i 's/192.168.1.1/192.168.3.1/g' package/base-files/files/bin/config_generate
 sed -i 's/OpenWrt/TR3000/g' package/base-files/files/bin/config_generate
 
-# ---------- 5. .config 补 argon + diskman + USB/Samba + 中文 ----------
+# ---------- 3. .config 追加（argon + diskman + USB + Samba + 中文 + HNAT）----------
 cat >> .config <<'EOF'
-# ===== HNAT 双开（MT7981）=====
+CONFIG_PACKAGE_luci-theme-argon=y
+CONFIG_PACKAGE_luci-app-diskman=y
+CONFIG_PACKAGE_util-linux-blkid=y
+CONFIG_PACKAGE_util-linux-lsblk=y
+
+CONFIG_PACKAGE_kmod-usb3=y
+CONFIG_PACKAGE_kmod-usb-storage=y
+CONFIG_PACKAGE_kmod-fs-ext4=y
+CONFIG_PACKAGE_kmod-fs-ntfs=y
+CONFIG_PACKAGE_kmod-fs-exfat=y
+CONFIG_PACKAGE_block-mount=y
+CONFIG_PACKAGE_blockd=y
+CONFIG_PACKAGE_parted=y
+CONFIG_PACKAGE_e2fsprogs=y
+CONFIG_PACKAGE_ntfs-3g=y
+
+CONFIG_PACKAGE_luci-app-samba4=y
+CONFIG_PACKAGE_samba4-server=y
+CONFIG_PACKAGE_wsdd2=y
+CONFIG_PACKAGE_luci-compat=y
+
+CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
+CONFIG_PACKAGE_luci-i18n-samba4-zh-cn=y
+CONFIG_PACKAGE_luci-i18n-diskman-zh-cn=y
+
 CONFIG_DEFAULT_flow_offloading=y
 CONFIG_DEFAULT_hw_flow_offloading=y
 EOF
 
-# ---------- 6. Samba4 缓存调优（USB3 + 2.5G LAN 轻 NAS）----------
+# ---------- 4. Samba 缓存调优 ----------
 mkdir -p package/base-files/files/etc/samba
 cat > package/base-files/files/etc/samba/smb-extra.conf <<'SAMBA'
 [global]
@@ -42,4 +59,4 @@ max xmit = 65536
 use sendfile = yes
 SAMBA
 
-echo "=== TR3000 官方+argon+diskman+Samba diy.sh done ==="
+echo "=== diy.sh done ==="
