@@ -62,12 +62,6 @@ jobs:
       run: |
         git clone --depth=1 -b $REPO_BRANCH $REPO_URL openwrt
 
-    # ---------- 关键：kiddin9 源提前写进 feeds.conf.default，让下一句的 -a 能扫到 ----------
-    - name: Add kiddin9 feed (argon + diskman only)
-      working-directory: ./openwrt
-      run: |
-        echo "src-git kiddin9 https://github.com/kiddin9/op-packages.git" >> feeds.conf.default
-
     - name: Update and install feeds
       working-directory: ./openwrt
       run: |
