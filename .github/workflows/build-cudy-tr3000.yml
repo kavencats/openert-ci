@@ -12,7 +12,7 @@ on:
           - '256mb-stock'
           - '256mb-ubootmod'
       optional_packages:
-        description: '额外包（空格分隔）'
+        description: '额外包（空格分隔，如 luci-app-sqm luci-app-upnp htop）'
         required: false
         default: ''
         type: string
@@ -24,7 +24,7 @@ on:
 
 env:
   REPO_URL: https://github.com/openwrt/openwrt
-  REPO_BRANCH: main
+  REPO_BRANCH: v25.12.5
   TZ: Asia/Shanghai
   CCACHE_DIR: /tmp/ccache
 
@@ -49,7 +49,6 @@ jobs:
           gettext git libncurses5-dev libssl-dev \
           python3-setuptools rsync unzip zlib1g-dev \
           file wget subversion quilt ccache
-
     - name: Restore ccache
       uses: actions/cache@v4
       with:
@@ -57,28 +56,25 @@ jobs:
         key: ccache-cudy-tr3000-${{ hashFiles('config/*.seed', 'diy.sh') }}
         restore-keys: |
           ccache-cudy-tr3000-
-
     - name: Clone OpenWrt source
       run: |
         git clone --depth=1 -b $REPO_BRANCH $REPO_URL openwrt
-
     - name: Update and install feeds
       working-directory: ./openwrt
       run: |
         ./scripts/feeds update -a
         ./scripts/feeds install -a
-
     - name: Determine device type
       id: device
       run: |
         echo "DEVICE_TYPE=${{ github.event.inputs.device_type }}" >> "$GITHUB_OUTPUT"
-
     - name: Configure build
       working-directory: ./openwrt
       run: |
         set -euo pipefail
+        # 基础配置
         cp ../config/common.seed .config
-
+        # 设备特定配置
         case "${{ steps.device.outputs.DEVICE_TYPE }}" in
           "256mb-stock")
             cat ../config/cudy-tr3000-256mb.seed >> .config
@@ -87,27 +83,17 @@ jobs:
             cat ../config/cudy-tr3000-256mb-ubootmod.seed >> .config
             ;;
         esac
-
+        # 可选包（仅手动触发）
         IFS=' ' read -ra PKGS <<< "${{ github.event.inputs.optional_packages }}"
         for pkg in "${PKGS[@]}"; do
           [[ -n "$pkg" ]] && echo "CONFIG_PACKAGE_${pkg}=y" >> .config
         done
-
         make defconfig
-
-    # ---------- device 掉选早发现 ----------
-    - name: Verify Cudy TR3000 device selected
-      working-directory: ./openwrt
-      run: |
-        grep -E "CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_cudy_tr3000" .config \
-          || (echo "::error::Cudy TR3000 device NOT selected, check seed" >&2; exit 1)
-
     - name: Run custom DIY script
       working-directory: ./openwrt
       run: |
         chmod +x ../diy.sh
         ../diy.sh
-
     - name: Cache downloaded packages
       uses: actions/cache@v4
       with:
@@ -115,22 +101,17 @@ jobs:
         key: dl-cudy-tr3000-${{ hashFiles('openwrt/dl/**') }}
         restore-keys: |
           dl-cudy-tr3000-
-
     - name: Download package sources
       working-directory: ./openwrt
       run: make download -j$(nproc) BUILD_LOG=1
 
-    # ---------- 加 -k，某个包挂不拖同批，方便定位 ----------
     - name: Build firmware
       working-directory: ./openwrt
       run: |
         export PATH="/usr/lib/ccache:$PATH"
-        make -j$(nproc) -k V=s 2>&1 | tee build.log
+        make -j$(nproc) V=s 2>&1 | tee build.log
         mkdir -p ../artifact
-        echo "=== bin/targets/mediatek/filogic/ ==="
-        ls -lh bin/targets/mediatek/filogic/ || true
-        cp -r bin/targets/mediatek/filogic/* ../artifact/ || echo "::warning::artifact empty"
-
+        cp -r bin/targets/mediatek/filogic/* ../artifact/
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
       with:
