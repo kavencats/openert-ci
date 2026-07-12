@@ -12,7 +12,7 @@ on:
           - '256mb-stock'
           - '256mb-ubootmod'
       optional_packages:
-        description: '额外包（空格分隔，如 luci-app-sqm luci-app-upnp htop）'
+        description: '额外包（空格分隔）'
         required: false
         default: ''
         type: string
@@ -24,7 +24,7 @@ on:
 
 env:
   REPO_URL: https://github.com/openwrt/openwrt
-  REPO_BRANCH: v25.12.5
+  REPO_BRANCH: main
   TZ: Asia/Shanghai
   CCACHE_DIR: /tmp/ccache
 
@@ -62,6 +62,12 @@ jobs:
       run: |
         git clone --depth=1 -b $REPO_BRANCH $REPO_URL openwrt
 
+    # ---------- 关键：kiddin9 源提前写进 feeds.conf.default，让下一句的 -a 能扫到 ----------
+    - name: Add kiddin9 feed (argon + diskman only)
+      working-directory: ./openwrt
+      run: |
+        echo "src-git kiddin9 https://github.com/kiddin9/op-packages.git" >> feeds.conf.default
+
     - name: Update and install feeds
       working-directory: ./openwrt
       run: |
@@ -77,10 +83,8 @@ jobs:
       working-directory: ./openwrt
       run: |
         set -euo pipefail
-        # 基础配置
         cp ../config/common.seed .config
 
-        # 设备特定配置
         case "${{ steps.device.outputs.DEVICE_TYPE }}" in
           "256mb-stock")
             cat ../config/cudy-tr3000-256mb.seed >> .config
@@ -90,13 +94,19 @@ jobs:
             ;;
         esac
 
-        # 可选包（仅手动触发）
         IFS=' ' read -ra PKGS <<< "${{ github.event.inputs.optional_packages }}"
         for pkg in "${PKGS[@]}"; do
           [[ -n "$pkg" ]] && echo "CONFIG_PACKAGE_${pkg}=y" >> .config
         done
 
         make defconfig
+
+    # ---------- device 掉选早发现 ----------
+    - name: Verify Cudy TR3000 device selected
+      working-directory: ./openwrt
+      run: |
+        grep -E "CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_cudy_tr3000" .config \
+          || (echo "::error::Cudy TR3000 device NOT selected, check seed" >&2; exit 1)
 
     - name: Run custom DIY script
       working-directory: ./openwrt
@@ -116,13 +126,16 @@ jobs:
       working-directory: ./openwrt
       run: make download -j$(nproc) BUILD_LOG=1
 
+    # ---------- 加 -k，某个包挂不拖同批，方便定位 ----------
     - name: Build firmware
       working-directory: ./openwrt
       run: |
         export PATH="/usr/lib/ccache:$PATH"
-        make -j$(nproc) V=s 2>&1 | tee build.log
+        make -j$(nproc) -k V=s 2>&1 | tee build.log
         mkdir -p ../artifact
-        cp -r bin/targets/mediatek/filogic/* ../artifact/
+        echo "=== bin/targets/mediatek/filogic/ ==="
+        ls -lh bin/targets/mediatek/filogic/ || true
+        cp -r bin/targets/mediatek/filogic/* ../artifact/ || echo "::warning::artifact empty"
 
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
