@@ -18,7 +18,7 @@ for i in 1 2 3; do
 done
 
 # ---------- 3. 装 argon + diskman（kiddin9 只这两个包）----------
-./scripts/feeds install -p kiddin9 luci-theme-argon luci-app-diskman
+#./scripts/feeds install -p kiddin9 luci-theme-argon luci-app-diskman
 
 # ---------- 4. 默认 IP / 主机名 ----------
 sed -i 's/192.168.1.1/192.168.3.1/g' package/base-files/files/bin/config_generate
@@ -26,34 +26,6 @@ sed -i 's/OpenWrt/TR3000/g' package/base-files/files/bin/config_generate
 
 # ---------- 5. .config 补 argon + diskman + USB/Samba + 中文 ----------
 cat >> .config <<'EOF'
-
-# ===== argon + diskman（kiddin9）=====
-CONFIG_PACKAGE_luci-theme-argon=y
-CONFIG_PACKAGE_luci-app-diskman=y
-
-# ===== USB 挂载细项（官方）=====
-CONFIG_PACKAGE_kmod-usb3=y
-CONFIG_PACKAGE_kmod-usb-storage=y
-CONFIG_PACKAGE_kmod-fs-ext4=y
-CONFIG_PACKAGE_kmod-fs-ntfs=y
-CONFIG_PACKAGE_kmod-fs-exfat=y
-CONFIG_PACKAGE_block-mount=y
-CONFIG_PACKAGE_blockd=y
-CONFIG_PACKAGE_parted=y
-CONFIG_PACKAGE_e2fsprogs=y
-CONFIG_PACKAGE_ntfs-3g=y
-
-# ===== Samba4 =====
-CONFIG_PACKAGE_luci-app-samba4=y
-CONFIG_PACKAGE_samba4-server=y
-CONFIG_PACKAGE_wsdd2=y
-CONFIG_PACKAGE_luci-compat=y
-
-# ===== 中文补全 =====
-CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
-CONFIG_PACKAGE_luci-i18n-samba4-zh-cn=y
-CONFIG_PACKAGE_luci-i18n-diskman-zh-cn=y
-
 # ===== HNAT 双开（MT7981）=====
 CONFIG_DEFAULT_flow_offloading=y
 CONFIG_DEFAULT_hw_flow_offloading=y
