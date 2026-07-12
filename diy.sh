@@ -7,20 +7,12 @@ set -euo pipefail
 # 注意：kiddin9 src-git 已提前写在 feeds.conf.default，update -a 已由 YAML 做完
 # ============================================
 
-# ---------- 1. 兜底：确保 kiddin9 索引可用（防 YAML 那遍 -a 时 kiddin9 临时挂）----------
-export GIT_TERMINAL_PROMPT=0
-./scripts/feeds update kiddin9 2>/dev/null || true
-./scripts/feeds install -p kiddin9 luci-theme-argon luci-app-diskman \
-  util-linux-blkid util-linux-lsblk
-
 # ---------- 2. IP / 主机名 ----------
 sed -i 's/192.168.1.1/192.168.3.1/g' package/base-files/files/bin/config_generate
 sed -i 's/OpenWrt/TR3000/g' package/base-files/files/bin/config_generate
 
 # ---------- 3. .config 追加（argon + diskman + USB + Samba + 中文 + HNAT）----------
 cat >> .config <<'EOF'
-CONFIG_PACKAGE_luci-theme-argon=y
-CONFIG_PACKAGE_luci-app-diskman=y
 CONFIG_PACKAGE_util-linux-blkid=y
 CONFIG_PACKAGE_util-linux-lsblk=y
 
@@ -41,8 +33,6 @@ CONFIG_PACKAGE_wsdd2=y
 CONFIG_PACKAGE_luci-compat=y
 
 CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
-CONFIG_PACKAGE_luci-i18n-samba4-zh-cn=y
-CONFIG_PACKAGE_luci-i18n-diskman-zh-cn=y
 
 CONFIG_DEFAULT_flow_offloading=y
 CONFIG_DEFAULT_hw_flow_offloading=y
