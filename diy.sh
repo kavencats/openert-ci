@@ -12,28 +12,11 @@ sed -i 's/192.168.1.1/192.168.3.1/g' package/base-files/files/bin/config_generat
 sed -i 's/OpenWrt/TR3000/g' package/base-files/files/bin/config_generate
 
 # ---------- 3. .config 追加（argon + diskman + USB + Samba + 中文 + HNAT）----------
-cat >> .config <<'EOF'
-CONFIG_PACKAGE_kmod-usb3=y
-CONFIG_PACKAGE_kmod-usb-storage=y
-CONFIG_PACKAGE_kmod-fs-ext4=y
-CONFIG_PACKAGE_kmod-fs-ntfs=y
-CONFIG_PACKAGE_kmod-fs-exfat=y
-CONFIG_PACKAGE_block-mount=y
-CONFIG_PACKAGE_blockd=y
-CONFIG_PACKAGE_parted=y
-CONFIG_PACKAGE_e2fsprogs=y
-CONFIG_PACKAGE_ntfs-3g=y
+#cat >> .config <<'EOF'
 
-CONFIG_PACKAGE_luci-app-samba4=y
-CONFIG_PACKAGE_samba4-server=y
-CONFIG_PACKAGE_wsdd2=y
-CONFIG_PACKAGE_luci-compat=y
-
-CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
-
-CONFIG_DEFAULT_flow_offloading=y
-CONFIG_DEFAULT_hw_flow_offloading=y
-EOF
+#CONFIG_DEFAULT_flow_offloading=y
+#CONFIG_DEFAULT_hw_flow_offloading=y
+#EOF
 
 # ---------- 4. Samba 缓存调优 ----------
 mkdir -p package/base-files/files/etc/samba
